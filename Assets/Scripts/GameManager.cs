@@ -88,6 +88,7 @@ public class GameManager : MonoBehaviour
             StartCoroutine(StartCpuTurn());
         else
             StartPlayerTurn();
+        fingerInputUI.Show();
     }
 
     public Player GetCurrentPlayer() => players[currentPlayerIndex];
@@ -169,7 +170,6 @@ public class GameManager : MonoBehaviour
 
         if (currentGunTarget == null)
         {
-            Debug.LogError("Gun target is null. SMASH skipped.");
             yield break;
         }
 
@@ -193,8 +193,6 @@ public class GameManager : MonoBehaviour
         }
 
         yield return new WaitForSeconds(2f);
-
-        fingerInputUI.Hide();
         HideYubisumaText();
 
         if (!target.FingersUp[0] && !target.FingersUp[1])
@@ -226,7 +224,6 @@ public class GameManager : MonoBehaviour
         ShowYubisumaText("SMASH!!");
         fingerInputUI.Show();
         yield return new WaitForSeconds(2f);
-        fingerInputUI.Hide();
         HideYubisumaText();
 
         turnPhase = TurnPhase.ApplyingMove;
@@ -305,8 +302,6 @@ public class GameManager : MonoBehaviour
             timer += Time.deltaTime;
             yield return null;
         }
-
-        fingerInputUI.Hide();
         HideYubisumaText();
 
         // タイムアップなら両指Down（初期状態）を担保
