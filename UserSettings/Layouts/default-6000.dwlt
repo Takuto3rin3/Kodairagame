@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_PixelRect:
     serializedVersion: 2
-    x: 7.3333335
+    x: 0
     y: 66
     width: 1470
-    height: 829.3334
+    height: 828
   m_ShowMode: 4
   m_Title: Project
   m_RootView: {fileID: 3}
@@ -42,7 +42,7 @@ MonoBehaviour:
     x: 0
     y: 36
     width: 1470
-    height: 773.3333
+    height: 772
   m_MinSize: {x: 200, y: 228}
   m_MaxSize: {x: 4000, y: 4028}
   m_ActualView: {fileID: 6}
@@ -67,7 +67,7 @@ MonoBehaviour:
     x: 0
     y: 0
     width: 1470
-    height: 829.3333
+    height: 828
   m_MinSize: {x: 875, y: 300}
   m_MaxSize: {x: 10000, y: 10000}
   m_UseTopView: 1
@@ -112,7 +112,7 @@ MonoBehaviour:
   m_Position:
     serializedVersion: 2
     x: 0
-    y: 809.3333
+    y: 808
     width: 1470
     height: 20
   m_MinSize: {x: 0, y: 0}
@@ -141,7 +141,7 @@ MonoBehaviour:
     x: 0
     y: 36
     width: 1470
-    height: 773.3333
+    height: 772
   m_SerializedDataModeController:
     m_DataMode: 0
     m_PreferredDataMode: 0
