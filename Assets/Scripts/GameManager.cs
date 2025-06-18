@@ -52,6 +52,11 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
+{
+    Debug.Log("playerMoves が空なので defaultDeck を使用");
+    GameSettings.playerMoves = new List<MoveType>(GameSettings.defaultDeck);
+}
         players = new List<Player>();
 
         var player = new Player("You");

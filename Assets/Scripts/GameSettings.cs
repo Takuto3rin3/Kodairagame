@@ -25,5 +25,13 @@ public static int cpuCount = 1;
             MoveType.Ace
         };
     }
+
+public static readonly List<MoveType> defaultDeck = new List<MoveType>{
+    MoveType.Heal, MoveType.Cure,
+    MoveType.Straight, MoveType.FireKick, MoveType.ThunderPunch, MoveType.Earthquake,
+    MoveType.StraightFire, MoveType.CrossThunder, MoveType.Gun, MoveType.Charge
+};
+
+
 }
 
