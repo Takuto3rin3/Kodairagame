@@ -56,30 +56,24 @@ public class FingerInputUI : MonoBehaviour
     {
         if (currentPlayer == null) return;
 
-        if (isGunMode)
-        {
-            // Gunモード：両方ボタン非表示・1本しか選べない
-            bothButton.gameObject.SetActive(false);
+        leftButton.gameObject.SetActive(true);
+       rightButton.gameObject.SetActive(true);
+       bothButton.gameObject.SetActive(true);
 
-            bool leftUp = currentPlayer.FingersUp[0];
-            bool rightUp = currentPlayer.FingersUp[1];
-
-            // 状態に応じてもう片方を無効化
-            leftButton.gameObject.SetActive(true);
-            rightButton.gameObject.SetActive(true);
-            leftButton.interactable = !rightUp;
-            rightButton.interactable = !leftUp;
-        }
-        else
-        {
-            // 通常モード：すべて表示・すべて選べる
-            leftButton.gameObject.SetActive(true);
-            rightButton.gameObject.SetActive(true);
-            bothButton.gameObject.SetActive(true);
-
-            leftButton.interactable = true;
-            rightButton.interactable = true;
-        }
+       if (isGunMode)
+       {
+           // Gun モード：基本は片方ずつだが、両指も選べるように
+           leftButton.interactable  = !currentPlayer.FingersUp[1];
+           rightButton.interactable = !currentPlayer.FingersUp[0];
+           bothButton.interactable  = true;
+       }
+       else
+       {
+           // 通常モード：すべて選択可能
+           leftButton.interactable  = true;
+           rightButton.interactable = true;
+           bothButton.interactable  = true;
+       }
 
         // ボタンラベル更新（任意）
         leftButton.GetComponentInChildren<TextMeshProUGUI>().text = currentPlayer.FingersUp[0] ? "UP" : "DOWN";
