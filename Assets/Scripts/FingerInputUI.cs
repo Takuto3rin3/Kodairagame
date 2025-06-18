@@ -13,10 +13,11 @@ public class FingerInputUI : MonoBehaviour
 
     void Start()
     {
-        leftButton.onClick.AddListener(() => SetFingers(true, false));
-        rightButton.onClick.AddListener(() => SetFingers(false, true));
-        bothButton.onClick.AddListener(() => SetFingers(true, true));
+        leftButton.onClick.AddListener(ToggleLeft);
+        rightButton.onClick.AddListener(ToggleRight);
+        bothButton.onClick.AddListener(ToggleBoth);
     }
+
 
     public void SetCurrentPlayer(Player player)
     {
@@ -41,15 +42,31 @@ public class FingerInputUI : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    private void SetFingers(bool left, bool right)
+    private void ToggleLeft()
     {
-        if (currentPlayer != null)
-        {
-            currentPlayer.FingersUp[0] = left;
-            currentPlayer.FingersUp[1] = right;
-            Debug.Log($"指の入力：左={left}, 右={right}");
-            UpdateFingerButtons(); // 状態変わったら再更新
-        }
+        if (currentPlayer == null) return;
+        // 左指を反転
+        currentPlayer.FingersUp[0] = !currentPlayer.FingersUp[0];
+        Debug.Log($"左トグル: {currentPlayer.FingersUp[0]}");
+        UpdateFingerButtons();
+    }
+    private void ToggleRight()
+    {
+        if (currentPlayer == null) return;
+        // 右指を反転
+        currentPlayer.FingersUp[1] = !currentPlayer.FingersUp[1];
+        Debug.Log($"右トグル: {currentPlayer.FingersUp[1]}");
+        UpdateFingerButtons();
+    }
+
+    private void ToggleBoth()
+    {
+        if (currentPlayer == null) return;
+        // 両指を反転
+        currentPlayer.FingersUp[0] = !currentPlayer.FingersUp[0];
+        currentPlayer.FingersUp[1] = !currentPlayer.FingersUp[1];
+        Debug.Log($"両トグル: 左={currentPlayer.FingersUp[0]}, 右={currentPlayer.FingersUp[1]}");
+        UpdateFingerButtons();
     }
 
     public void UpdateFingerButtons()
