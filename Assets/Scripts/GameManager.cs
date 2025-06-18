@@ -127,26 +127,29 @@ public class GameManager : MonoBehaviour
         moveSelectionUI.Show();
     }
 
-    public void OnMoveSelected(MoveType moveType)
+     public void OnMoveSelected(MoveType moveType)
+ {
+     selectedMoveType = moveType;
+     moveSelectionUI.Hide();
+
+     shoutButton.onClick.RemoveAllListeners();  // リスナーをいったんクリア
+
+     Player self = GetCurrentPlayer();
+
+
+    if (moveType == MoveType.Gun)
     {
-        selectedMoveType = moveType;
-        moveSelectionUI.Hide();
-
-        shoutButton.onClick.RemoveAllListeners(); // ← 修正点①：毎回リスナー初期化
-
-        Player self = GetCurrentPlayer();
-
-        if (moveType == MoveType.Gun)
-        {
-            BeginGunTargeting(self);
-        }
-        else
-        {
-            shoutButton.onClick.AddListener(OnShoutButtonPressed);
-            turnPhase = TurnPhase.WaitingForFingerSelection;
-            shoutButton.gameObject.SetActive(true);
-        }
+        BeginGunTargeting(self);
+        return;     // ← ここを追加：以降の通常SHOUT設定をスキップ
     }
+     else
+     {
+         shoutButton.onClick.AddListener(OnShoutButtonPressed);
+         turnPhase = TurnPhase.WaitingForFingerSelection;
+         shoutButton.gameObject.SetActive(true);
+     }
+ }
+
 
     public void OnShoutButtonPressed()
     {
@@ -232,12 +235,6 @@ public class GameManager : MonoBehaviour
             .Where(p => p != self && p.FingersUp.Any(up => up))
             .ToList();
 
-        if (selectedMoveType == MoveType.Gun)
-        {
-            Debug.LogWarning("Gun selected but ShowYubisumaThenApply called. This should not happen.");
-            yield break;
-        }
-
         Move move = new Move(selectedMoveType.Value);
 
         if (move.CanActivate(self, targets))
@@ -281,18 +278,44 @@ public class GameManager : MonoBehaviour
 
         turnPhase = TurnPhase.ShowingYubisuma;
 
+        // まず、全員の指をリセット
         foreach (var p in players)
             p.FingersUp[0] = p.FingersUp[1] = false;
 
+        // CPU が攻撃手を決定
         Move move = cpu.ChooseMove(players);
         selectedMoveType = move.Type;
 
+        // SMASH を表示
         ShowYubisumaText("SMASH!!");
+
+        // CPU が「当てにいく指」をランダム決定
         cpu.RandomizeFingers();
 
-        yield return new WaitForSeconds(2f);
+        Player humanTarget = players.First(p => !p.isCPU && p.IsAlive);
+        fingerInputUI.SetCurrentPlayer(humanTarget);
+        fingerInputUI.SetGunMode(true);
+        fingerInputUI.Show();
+
+        // タイムアウト付きで入力を待つ
+        float timer = 0f;
+        const float TIMEOUT = 1.5f;  // 最大待機時間（秒）
+        while (timer < TIMEOUT && !humanTarget.HasSelectedFinger())
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
         fingerInputUI.Hide();
         HideYubisumaText();
+
+        // タイムアップなら両指Down（初期状態）を担保
+        if (!humanTarget.HasSelectedFinger())
+        {
+            humanTarget.FingersUp[0] = false;
+            humanTarget.FingersUp[1] = false;
+        }
+
 
         turnPhase = TurnPhase.ApplyingMove;
 
@@ -408,7 +431,15 @@ public class GameManager : MonoBehaviour
     public void BeginGunTargeting(Player self)
     {
         var candidates = players.Where(p => p != self && p.IsAlive).ToList();
-
+        // １人しか候補がいなければ自動選択して SHOUT リスナーを登録
+    if (candidates.Count == 1)
+    {
+        currentGunTarget = candidates[0];
+        shoutButton.onClick.RemoveAllListeners();
+        shoutButton.onClick.AddListener(OnGunShoutButtonPressed);
+        shoutButton.gameObject.SetActive(true);
+        return;
+    }
         gunTargetUI.Show(self, candidates, (target) =>
         {
             currentGunTarget = target;
@@ -428,11 +459,11 @@ public class GameManager : MonoBehaviour
         if (isHit)
         {
             target.TakeDamage(4, attacker.HasPiercing);
-            AppendMoveLog($"{attacker.Name}の銃が命中！{target.Name}に4ダメージ！");
+            AppendMoveLog($"{attacker.Name}の銃が命中!{target.Name}に4ダメージ!");
         }
         else
         {
-            AppendMoveLog($"{attacker.Name}の銃は外れた！");
+            AppendMoveLog($"{attacker.Name}の銃は外れた!");
         }
 
         attacker.HasPiercing = false;
