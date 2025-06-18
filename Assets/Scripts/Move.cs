@@ -20,19 +20,20 @@ public class Move
         Name = type.ToString();
     }
 
-    public bool CanActivate(Player self, List<Player> targets)
-    {
-        int totalFingers = targets.Sum(p => p.FingersUpCount()) + self.FingersUpCount();
-        bool selfRightUp = self.FingersUp[0];
-        bool selfLeftUp = self.FingersUp[1];
+         public bool CanActivate(Player self, List<Player> targets)
+     {
+         int totalFingers = targets.Sum(p => p.FingersUpCount()) + self.FingersUpCount();
+        bool anyNoFingerOpp = targets.Any(p => p.FingersUpCount() == 0);
+        bool selfNoFinger   = self.FingersUpCount() == 0;
+         bool selfRightUp = self.FingersUp[0];
+         bool selfLeftUp  = self.FingersUp[1];
 
-        switch (Type)
-        {
-            case MoveType.Straight:
-                return targets.Any(p =>
-                    (selfRightUp && p.FingersUp[1]) ||
-                    (selfLeftUp && p.FingersUp[0])
-                );
+         switch (Type)
+         {
+            case MoveType.Earthquake:
+                // 自分 or 相手の誰かが「両手 DOWN」なら発動可
+                return anyNoFingerOpp || selfNoFinger;
+
 
             case MoveType.Cross:
                 return targets.Any(p =>
@@ -107,9 +108,13 @@ public class Move
                 break;
 
             case MoveType.Earthquake:
-                var others = allPlayers.Where(p => p != self).ToList();
-                foreach (var p in others) p.TakeDamage(4);
-                gm?.LogDamage(self, others, Name, 4);
+          　　　　// 指を上げていないプレイヤー全員（自分含む場合あり）が対象
+                var quakeTargets = allPlayers
+                   .Where(p => p.IsAlive && p.FingersUpCount() == 0)
+                   .ToList();
+
+               foreach (var t in quakeTargets) t.TakeDamage(4);
+               gm?.LogDamage(self, quakeTargets, Name, 4);
                 break;
 
             case MoveType.StraightFire:
