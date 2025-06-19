@@ -142,3 +142,4 @@ public class MoveSetupManager : MonoBehaviour
         SceneManager.LoadScene("TitleScene");
     }
 }
+//keitenn
