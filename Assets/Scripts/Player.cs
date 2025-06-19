@@ -31,24 +31,37 @@ public class Player
 
     public int FingersUpCount() => FingersUp.Count(f => f);
 
-    public void TakeDamage(int amount, bool ignoreShield = false)
+public void TakeDamage(int amount, bool ignoreShield = false)
 {
-    if (!ignoreShield && !HasPiercing)
+    int prevShield = Shield;              // ダメージ前
+    int rawAfter   = prevShield - amount; // クリップ前
+
+    // 1) 見た目用に更新
+    Shield = Mathf.Max(0, rawAfter);
+
+    // 2) 敗北判定
+    bool defeated = false;
+
+    if (ignoreShield || HasPiercing)
     {
-        Shield = Mathf.Max(0, Shield - amount);
-        if (Shield <= 0)
-        {
-            return; // シールドが0でもまだ生きてる（通常攻撃では死なない）
-        }
+        // 貫通系は即死
+        defeated = amount > 0;
     }
     else
     {
-        Shield = Mathf.Max(0, Shield - amount);
-        Die(); // 貫通 or ignoreShield の場合は即死
+        // 通常攻撃は「攻撃前にすでに 0 だったら」だけ敗北
+        if (prevShield == 0 && amount > 0)
+            defeated = true;
+        // シールドを割るだけ（prevShield > 0）は生存
     }
 
+    if (defeated) Die();
+
+    // 毎ターン 1 回きりの貫通は攻撃後に解除
     HasPiercing = false;
 }
+
+
 
 
 public void SetBurned(bool value)
