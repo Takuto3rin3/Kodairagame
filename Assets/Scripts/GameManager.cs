@@ -100,10 +100,9 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
 
     public void AppendMoveLog(string message)
     {
-        moveLogHistory.Add(message);
-        if (moveLogHistory.Count > 2)
-            moveLogHistory.RemoveAt(0);
-        moveLogText.text = string.Join("\n", moveLogHistory);
+    moveLogHistory.Clear();        // ← 以前の履歴は捨てる
+    moveLogHistory.Add(message);   // 最新の 1 行だけ保持
+    moveLogText.text = message;    // 1 行なので直接代入でも可
     }
 
     void StartPlayerTurn()
