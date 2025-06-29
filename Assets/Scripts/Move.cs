@@ -4,9 +4,20 @@ using UnityEngine;
 
 public enum MoveType
 {
-None,
-    Straight, Cross, FireKick, ThunderPunch, Earthquake,
-    StraightFire, CrossThunder, Heal, Cure, Ace, Katana, Gun, Charge
+    None,
+    Straight,
+    Cross,
+    FireKick,
+    ThunderPunch,
+    Earthquake,
+    StraightFire,
+    CrossThunder,
+    Heal,
+    Cure,
+    Ace,
+    Katana,
+    Gun,
+    Charge
 }
 
 public class Move
@@ -20,52 +31,37 @@ public class Move
         Name = type.ToString();
     }
 
-         public bool CanActivate(Player self, List<Player> targets)
-     {
-         int totalFingers = targets.Sum(p => p.FingersUpCount()) + self.FingersUpCount();
+    public bool CanActivate(Player self, List<Player> targets)
+    {
+        int totalFingers = targets.Sum(p => p.FingersUpCount()) + self.FingersUpCount();
         bool anyNoFingerOpp = targets.Any(p => p.FingersUpCount() == 0);
-        bool selfNoFinger   = self.FingersUpCount() == 0;
-         bool selfRightUp = self.FingersUp[0];
-         bool selfLeftUp  = self.FingersUp[1];
+        bool selfNoFinger = self.FingersUpCount() == 0;
+        bool selfRightUp = self.FingersUp[0];
+        bool selfLeftUp = self.FingersUp[1];
 
-         switch (Type)
-         {
+        switch (Type)
+        {
             case MoveType.Earthquake:
-                // 自分 or 相手の誰かが「両手 DOWN」なら発動可
                 return anyNoFingerOpp || selfNoFinger;
-
-
             case MoveType.Cross:
-                return targets.Any(p =>
-                    (selfRightUp && p.FingersUp[0]) ||
-                    (selfLeftUp && p.FingersUp[1])
-                );
-
+                return targets.Any(p => (selfRightUp && p.FingersUp[0]) || (selfLeftUp && p.FingersUp[1]));
             case MoveType.FireKick:
                 return totalFingers == 2;
-
             case MoveType.ThunderPunch:
                 return totalFingers == 3;
-
             case MoveType.StraightFire:
             case MoveType.CrossThunder:
-                return self.FingersUp.All(up => up) &&
-                       targets.All(p => p.FingersUp.All(up => up));
-
+                return self.FingersUp.All(up => up) && targets.All(p => p.FingersUp.All(up => up));
             case MoveType.Heal:
             case MoveType.Cure:
                 return self.HealCureUses < Player.MaxHealCureUses;
-
             case MoveType.Ace:
                 return totalFingers == 1;
-
             case MoveType.Katana:
             case MoveType.Gun:
                 return self.Shield >= 2;
-
             case MoveType.Charge:
                 return totalFingers <= 1;
-
             default:
                 return true;
         }
@@ -108,13 +104,11 @@ public class Move
                 break;
 
             case MoveType.Earthquake:
-          　　　　// 指を上げていないプレイヤー全員（自分含む場合あり）が対象
                 var quakeTargets = allPlayers
                    .Where(p => p.IsAlive && p.FingersUpCount() == 0)
                    .ToList();
-
-               foreach (var t in quakeTargets) t.TakeDamage(4);
-               gm?.LogDamage(self, quakeTargets, Name, 4);
+                foreach (var t in quakeTargets) t.TakeDamage(4);
+                gm?.LogDamage(self, quakeTargets, Name, 4);
                 break;
 
             case MoveType.StraightFire:
@@ -150,19 +144,24 @@ public class Move
                 break;
 
             case MoveType.Ace:
-                foreach (var target in targets.Where(p => p.IsAlive && p.FingersUpCount() > 0))
+                foreach (var t in targets.Where(p => p.IsAlive && p.FingersUpCount() > 0))
                 {
-                    target.TakeDamage(1, ignoreShield: false);
-                    target.SetBurned(true);
+                    t.TakeDamage(1);
+                    t.ApplyStatus(StatusEffect.Burned);
                 }
+                gm?.LogDamage(self, targets, Name, 1);
                 break;
 
             case MoveType.Katana:
-                self.Shield -= 2;
-                foreach (var target in targets.Where(p => p.IsAlive))
+                // 自分のシールドを2消費（貫通扱い）
+                self.TakeDamage(2, ignoreShield: true);
+                var katanaTargets = targets.Where(p => p.IsAlive).ToList();
+                foreach (var t in katanaTargets)
                 {
-                    target.Shield = target.Shield / 2;
+                    int damage = t.Shield;
+                    t.TakeDamage(damage, ignoreShield: true);
                 }
+                gm?.LogDamage(self, katanaTargets, Name, /*damage varies per target*/ 0);
                 break;
 
             case MoveType.Charge:
@@ -171,4 +170,3 @@ public class Move
         }
     }
 }
-

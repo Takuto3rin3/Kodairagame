@@ -18,6 +18,9 @@ public enum TurnPhase
 
 public class GameManager : MonoBehaviour
 {
+    [Header("Back Button")]
+    public Button backButton;
+
     public List<Player> players = new List<Player>();
     public int currentPlayerIndex = 0;
 
@@ -52,11 +55,11 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
-{
-    Debug.Log("playerMoves が空なので defaultDeck を使用");
-    GameSettings.playerMoves = new List<MoveType>(GameSettings.defaultDeck);
-}
+        if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
+        {
+            Debug.Log("playerMoves が空なので defaultDeck を使用");
+            GameSettings.playerMoves = new List<MoveType>(GameSettings.defaultDeck);
+        }
         players = new List<Player>();
 
         var player = new Player("You");
@@ -71,28 +74,29 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         }
 
         if (!GameSettings.useCpuOpponent && GameSettings.cpuCount == 0)
-        {
             players.Add(new Player("Player 2"));
-        }
 
         moveSelectionUI.Init(this);
         fingerInputUI.SetCurrentPlayer(GetCurrentPlayer());
         turnManagerUI.UpdateTurnText(GetCurrentPlayer().Name);
 
         if (players.Count >= 2)
-        {
             statusDisplayUI.UpdateStatus(players);
-        }
 
         HideYubisumaText();
         shoutButton.gameObject.SetActive(false);
-        moveLogText.text = "";
+        moveLogText.text = string.Empty;
         returnToTitleButton.gameObject.SetActive(false);
+
+        // 戻るボタンは最初は非表示＆クリックリスナを登録
+        backButton.gameObject.SetActive(false);
+        backButton.onClick.AddListener(OnBackToMoveSelection);
 
         if (GetCurrentPlayer().isCPU)
             StartCoroutine(StartCpuTurn());
         else
             StartPlayerTurn();
+
         fingerInputUI.Show();
     }
 
@@ -100,31 +104,22 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
 
     public void AppendMoveLog(string message)
     {
-    moveLogHistory.Clear();        // ← 以前の履歴は捨てる
-    moveLogHistory.Add(message);   // 最新の 1 行だけ保持
-    moveLogText.text = message;    // 1 行なので直接代入でも可
+        moveLogHistory.Clear();
+        moveLogHistory.Add(message);
+        moveLogText.text = message;
     }
 
     void StartPlayerTurn()
     {
-        Debug.Log("StartPlayerTurn 呼び出し");
-
-        Player player = GetCurrentPlayer();
-
-        if (!player.CanAct())
+        if (!GetCurrentPlayer().CanAct())
         {
-            AppendMoveLog($"{player.Name} is paralyzed and cannot move!");
+            AppendMoveLog($"{GetCurrentPlayer().Name} is paralyzed and cannot move!");
             StartCoroutine(SwitchTurnWithDelay());
             return;
         }
 
-        fingerInputUI.SetCurrentPlayer(player);
-
-        if (isGunTargetingMode)
-        {
-            Debug.Log("Gun処理中なのでUIスキップ");
-            return;
-        }
+        fingerInputUI.SetCurrentPlayer(GetCurrentPlayer());
+        if (isGunTargetingMode) return;
 
         selectedMoveType = null;
         turnPhase = TurnPhase.WaitingForMoveSelection;
@@ -132,33 +127,30 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         moveSelectionUI.Show();
     }
 
-     public void OnMoveSelected(MoveType moveType)
- {
-     selectedMoveType = moveType;
-     moveSelectionUI.Hide();
-
-     shoutButton.onClick.RemoveAllListeners();  // リスナーをいったんクリア
-
-     Player self = GetCurrentPlayer();
-
-
-    if (moveType == MoveType.Gun)
+    public void OnMoveSelected(MoveType moveType)
     {
-        BeginGunTargeting(self);
-        return;     // ← ここを追加：以降の通常SHOUT設定をスキップ
-    }
-     else
-     {
-         shoutButton.onClick.AddListener(OnShoutButtonPressed);
-         turnPhase = TurnPhase.WaitingForFingerSelection;
-         shoutButton.gameObject.SetActive(true);
-     }
- }
+        selectedMoveType = moveType;
+        moveSelectionUI.Hide();
+        // 戻るボタンを表示
+        backButton.gameObject.SetActive(true);
 
+        shoutButton.onClick.RemoveAllListeners();
+        if (moveType == MoveType.Gun)
+        {
+            BeginGunTargeting(GetCurrentPlayer());
+            return;
+        }
+
+        shoutButton.onClick.AddListener(OnShoutButtonPressed);
+        turnPhase = TurnPhase.WaitingForFingerSelection;
+        shoutButton.gameObject.SetActive(true);
+    }
 
     public void OnShoutButtonPressed()
     {
         shoutButton.gameObject.SetActive(false);
+        // 戻るボタンを非表示
+        backButton.gameObject.SetActive(false);
         StartCoroutine(ShowYubisumaThenApply());
     }
 
@@ -170,42 +162,24 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
 
     IEnumerator HandleGunSmashSequence()
     {
-        Debug.Log("Gun SMASH処理開始");
-
-        if (currentGunTarget == null)
-        {
-            yield break;
-        }
+        if (currentGunTarget == null) yield break;
 
         Player attacker = GetCurrentPlayer();
         Player target = currentGunTarget;
-
-        attacker.FingersUp[0] = false;
-        attacker.FingersUp[1] = false;
-        target.FingersUp[0] = false;
-        target.FingersUp[1] = false;
+        attacker.FingersUp[0] = attacker.FingersUp[1] = false;
+        target.FingersUp[0] = target.FingersUp[1] = false;
 
         ShowYubisumaText("SMASH!!");
-
         fingerInputUI.SetCurrentPlayer(attacker);
         fingerInputUI.SetGunMode(true);
         fingerInputUI.Show();
 
-        if (target.isCPU)
-        {
-            target.RandomizeSingleFinger();
-        }
-
+        if (target.isCPU) target.RandomizeSingleFinger();
         yield return new WaitForSeconds(2f);
         HideYubisumaText();
 
-        if (!target.FingersUp[0] && !target.FingersUp[1])
-        {
-            target.RandomizeSingleFinger();
-        }
-
+        if (!target.FingersUp[0] && !target.FingersUp[1]) target.RandomizeSingleFinger();
         int guessedFinger = fingerInputUI.GetSelectedFinger();
-
         fingerInputUI.SetGunMode(false);
 
         ResolveGunAttack(attacker, target, guessedFinger);
@@ -214,16 +188,9 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
     IEnumerator ShowYubisumaThenApply()
     {
         turnPhase = TurnPhase.ShowingYubisuma;
-
         Player self = GetCurrentPlayer();
-        foreach (var p in players)
-            p.FingersUp[0] = p.FingersUp[1] = false;
-
-        foreach (var p in players)
-        {
-            if (p != self && p.isCPU)
-                p.RandomizeFingers();
-        }
+        foreach (var p in players) p.FingersUp[0] = p.FingersUp[1] = false;
+        foreach (var p in players) if (p != self && p.isCPU) p.RandomizeFingers();
 
         ShowYubisumaText("SMASH!!");
         fingerInputUI.Show();
@@ -231,13 +198,9 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         HideYubisumaText();
 
         turnPhase = TurnPhase.ApplyingMove;
-
-        List<Player> targets = players
-            .Where(p => p != self && p.FingersUp.Any(up => up))
-            .ToList();
+        List<Player> targets = players.Where(p => p != self && p.FingersUp.Any(up => up)).ToList();
 
         Move move = new Move(selectedMoveType.Value);
-
         if (move.CanActivate(self, targets))
         {
             move.ApplyEffect(self, targets, players);
@@ -245,7 +208,7 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         }
         else
         {
-            AppendMoveLog(self.Name + "'s move failed");
+            AppendMoveLog($"{self.Name}'s move failed");
         }
 
         statusDisplayUI.UpdateStatus(players);
@@ -254,13 +217,10 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         if (!gameEnded)
         {
             yield return new WaitForSeconds(1.5f);
-            foreach (var p in players)
-                p.FingersUp[0] = p.FingersUp[1] = false;
-
+            foreach (var p in players) p.FingersUp[0] = p.FingersUp[1] = false;
             fingerInputUI.SetCurrentPlayer(self);
             fingerInputUI.UpdateFingerDisplay();
             statusDisplayUI.UpdateStatus(players);
-
             StartCoroutine(SwitchTurnWithDelay());
         }
     }
@@ -268,29 +228,25 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
     IEnumerator StartCpuTurn()
     {
         Player cpu = GetCurrentPlayer();
-
         if (!cpu.CanAct())
         {
-            AppendMoveLog(cpu.Name + " is paralyzed and cannot move!");
+            AppendMoveLog($"{cpu.Name} is paralyzed and cannot move!");
             yield return new WaitForSeconds(1f);
             StartCoroutine(SwitchTurnWithDelay());
             yield break;
         }
 
-        turnPhase = TurnPhase.ShowingYubisuma;
-
-        // まず、全員の指をリセット
-        foreach (var p in players)
-            p.FingersUp[0] = p.FingersUp[1] = false;
-
-        // CPU が攻撃手を決定
         Move move = cpu.ChooseMove(players);
-        selectedMoveType = move.Type;
+        if (move.Type == MoveType.Gun)
+        {
+            BeginGunTargeting(cpu);
+            yield break;
+        }
 
-        // SMASH を表示
+        turnPhase = TurnPhase.ShowingYubisuma;
+        foreach (var p in players) p.FingersUp[0] = p.FingersUp[1] = false;
+
         ShowYubisumaText("SMASH!!");
-
-        // CPU が「当てにいく指」をランダム決定
         cpu.RandomizeFingers();
 
         Player humanTarget = players.First(p => !p.isCPU && p.IsAlive);
@@ -298,9 +254,7 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         fingerInputUI.SetGunMode(true);
         fingerInputUI.Show();
 
-        // タイムアウト付きで入力を待つ
-        float timer = 0f;
-        const float TIMEOUT = 1.5f;  // 最大待機時間（秒）
+        float timer = 0f; const float TIMEOUT = 1.5f;
         while (timer < TIMEOUT && !humanTarget.HasSelectedFinger())
         {
             timer += Time.deltaTime;
@@ -308,28 +262,17 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         }
         HideYubisumaText();
 
-        // タイムアップなら両指Down（初期状態）を担保
-        if (!humanTarget.HasSelectedFinger())
-        {
-            humanTarget.FingersUp[0] = false;
-            humanTarget.FingersUp[1] = false;
-        }
-
-
+        if (!humanTarget.HasSelectedFinger()) humanTarget.FingersUp[0] = humanTarget.FingersUp[1] = false;
         turnPhase = TurnPhase.ApplyingMove;
-
-        List<Player> targets = players
-            .Where(p => p != cpu && p.FingersUp.Any(up => up))
-            .ToList();
-
-        if (move.CanActivate(cpu, targets))
+        List<Player> targets2 = players.Where(p => p != cpu && p.FingersUp.Any(up => up)).ToList();
+        if (move.CanActivate(cpu, targets2))
         {
-            move.ApplyEffect(cpu, targets, players);
-            LogDamage(cpu, targets, move.Name, 1);
+            move.ApplyEffect(cpu, targets2, players);
+            LogDamage(cpu, targets2, move.Name, 1);
         }
         else
         {
-            AppendMoveLog(cpu.Name + "'s move failed");
+            AppendMoveLog($"{cpu.Name}'s move failed");
         }
 
         statusDisplayUI.UpdateStatus(players);
@@ -338,14 +281,10 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         if (!gameEnded)
         {
             yield return new WaitForSeconds(1.5f);
-
-            foreach (var p in players)
-                p.FingersUp[0] = p.FingersUp[1] = false;
-
+            foreach (var p in players) p.FingersUp[0] = p.FingersUp[1] = false;
             fingerInputUI.SetCurrentPlayer(players[(currentPlayerIndex + 1) % players.Count]);
             fingerInputUI.UpdateFingerDisplay();
             statusDisplayUI.UpdateStatus(players);
-
             StartCoroutine(SwitchTurnWithDelay());
         }
     }
@@ -353,21 +292,15 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
     IEnumerator SwitchTurnWithDelay()
     {
         turnPhase = TurnPhase.SwitchingTurn;
-
         moveSelectionUI.Hide();
-
         yield return new WaitForSeconds(1f);
 
         selectedMoveType = null;
         currentPlayerIndex = (currentPlayerIndex + 1) % players.Count;
-
         while (!players[currentPlayerIndex].CanAct())
-        {
             currentPlayerIndex = (currentPlayerIndex + 1) % players.Count;
-        }
 
         turnManagerUI.UpdateTurnText(GetCurrentPlayer().Name);
-
         if (GetCurrentPlayer().isCPU)
             StartCoroutine(StartCpuTurn());
         else
@@ -384,13 +317,11 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
                 players.RemoveAt(i);
             }
         }
-
         if (players.Count == 1)
         {
             string winnerName = players[0].Name;
             gameOverUI.Show(winnerName);
             gameEnded = true;
-
             fingerInputUI.UpdateFingerDisplay();
             statusDisplayUI.UpdateStatus(players);
             returnToTitleButton.gameObject.SetActive(true);
@@ -405,13 +336,28 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
 
     void HideYubisumaText()
     {
-        yubisumaText.text = "";
+        yubisumaText.text = string.Empty;
         yubisumaText.gameObject.SetActive(false);
     }
 
     public void OnReturnToTitleButtonClicked()
     {
         SceneManager.LoadScene("TitleScene");
+    }
+
+    /// <summary>
+    /// 技選択画面に戻る
+    /// </summary>
+    public void OnBackToMoveSelection()
+    {
+        shoutButton.gameObject.SetActive(false);
+        backButton.gameObject.SetActive(false);
+
+        selectedMoveType = null;
+        turnPhase = TurnPhase.WaitingForMoveSelection;
+
+        moveSelectionUI.Init(this);
+        moveSelectionUI.Show();
     }
 
     public void LogDamage(Player attacker, List<Player> targets, string moveName, int damage)
@@ -421,7 +367,6 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
             AppendMoveLog($"{attacker.Name} used {moveName}, but hit no one.");
             return;
         }
-
         string log = $"{attacker.Name} used {moveName} → ";
         log += string.Join(", ", targets.Select(t => $"{t.Name} -{damage}"));
         AppendMoveLog(log);
@@ -430,30 +375,29 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
     public void BeginGunTargeting(Player self)
     {
         var candidates = players.Where(p => p != self && p.IsAlive).ToList();
-        // １人しか候補がいなければ自動選択して SHOUT リスナーを登録
-    if (candidates.Count == 1)
-    {
-        currentGunTarget = candidates[0];
-        shoutButton.onClick.RemoveAllListeners();
-        shoutButton.onClick.AddListener(OnGunShoutButtonPressed);
-        shoutButton.gameObject.SetActive(true);
-        return;
-    }
+        if (candidates.Count == 1)
+        {
+            currentGunTarget = candidates[0];
+            shoutButton.onClick.RemoveAllListeners();
+            shoutButton.onClick.AddListener(OnGunShoutButtonPressed);
+            shoutButton.gameObject.SetActive(true);
+            return;
+        }
         gunTargetUI.Show(self, candidates, (target) =>
         {
             currentGunTarget = target;
-
-            shoutButton.gameObject.SetActive(true);
             shoutButton.onClick.RemoveAllListeners();
             shoutButton.onClick.AddListener(OnGunShoutButtonPressed);
+            shoutButton.gameObject.SetActive(true);
         });
-
         shoutButton.gameObject.SetActive(false);
     }
 
     public void ResolveGunAttack(Player attacker, Player target, int guessedFingerIndex)
     {
-        bool isHit = target.FingersUp[guessedFingerIndex];
+        bool isHit = guessedFingerIndex >= 0 && guessedFingerIndex < target.FingersUp.Length
+            ? target.FingersUp[guessedFingerIndex]
+            : true;
 
         if (isHit)
         {
@@ -466,7 +410,12 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         }
 
         attacker.HasPiercing = false;
-        currentGunTarget = null; // ← 修正点②：次のターンに残らないように
+        currentGunTarget = null;
+
+        statusDisplayUI.UpdateStatus(players);
+        CheckGameOver();
+        if (gameEnded) return;
+
         StartCoroutine(SwitchTurnWithDelay());
     }
 
@@ -480,16 +429,11 @@ if (GameSettings.playerMoves == null || GameSettings.playerMoves.Count != 10)
         List<MoveType> all = new List<MoveType>(
             System.Enum.GetValues(typeof(MoveType)) as MoveType[]
         );
-
         all.Remove(MoveType.Heal);
         all.Remove(MoveType.Cure);
-
         all = all.OrderBy(x => Random.value).Take(8).ToList();
-
         all.Insert(0, MoveType.Heal);
         all.Insert(1, MoveType.Cure);
-
         return all;
     }
 }
-
